@@ -8,14 +8,14 @@ import base64
 # import urllib
 # from dotenv import load_dotenv
 
-import logfire
+# import logfire
 from pydantic_ai import Agent, BinaryContent
 from pydantic_ai.models.bedrock import BedrockConverseModel
 from pydantic_ai.providers.bedrock import BedrockProvider
 from pydantic import BaseModel
 
-logfire.configure()
-logfire.instrument_pydantic_ai()
+# logfire.configure()
+# logfire.instrument_pydantic_ai()
 
 @dataclass
 class Deps:
@@ -34,7 +34,7 @@ food_agent = Agent(model, output_type=[Food, str], instructions ="""Classify the
 # s3 = boto3.client('s3')
 
 def lambda_handler(event, context):
-    data = json.loads(event.body)
+    data = json.loads(event.get('body', '{}'))
 
     # file_name = data.get('fileName')
     content_type = data.get('contentType')
@@ -54,6 +54,8 @@ def lambda_handler(event, context):
     decoded_image = base64.b64decode(image_base64)
 
     result = asyncio.run(classify_and_lookup(decoded_image, content_type))
+
+    print("Claude classified as", result['classification'])
 
 
     # bucket = event['Records'][0]['s3']['bucket']['name']
@@ -85,7 +87,7 @@ async def classify_and_lookup(decodedImage, contentType) -> dict:
     # USDA FDC search
     api_key = os.environ["FOOD_API"]
     async with AsyncClient() as client:
-        logfire.instrument_httpx(client, capture_all=True)
+        # logfire.instrument_httpx(client, capture_all=True)
         fdc_response = await client.get(
             "https://api.nal.usda.gov/fdc/v1/foods/search",
             params={

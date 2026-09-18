@@ -5,6 +5,7 @@ function App() {
   const [file, setFile] = useState(null)
   const [previewUrl, setPreviewUrl] = useState('')
   const [uploadStatus, setUploadStatus] = useState('')
+  const [nutrients, setNutrients] = useState([])
   const previewUrlRef = useRef('')
 
   useEffect(() => () => {
@@ -20,6 +21,7 @@ function App() {
     previewUrlRef.current = url
     setFile(url ? selectedFile : null)
     setPreviewUrl(url)
+    setNutrients([])
 
     if (!url) {
       setUploadStatus('Please choose an image file.')
@@ -29,7 +31,7 @@ function App() {
     setUploadStatus('Converting image...')
     try {
       const imageBase64 = await fileToBase64(selectedFile)
-      const apiUrl = import.meta.env.VITE_LAMBDA_API_URL
+      const apiUrl = 'https://sb2voabvk3.execute-api.us-east-1.amazonaws.com/prod/nut'
       if (!apiUrl) {
         setUploadStatus('Converted to Base64. Configure VITE_LAMBDA_API_URL to send it.')
         return
@@ -41,6 +43,11 @@ function App() {
         body: JSON.stringify({ fileName: selectedFile.name, contentType: selectedFile.type, base64Image: imageBase64 }),
       })
       if (!response.ok) throw new Error(`Lambda API returned ${response.status}`)
+      const apiResponse = await response.json()
+      const responseBody = typeof apiResponse.body === 'string'
+        ? JSON.parse(apiResponse.body)
+        : apiResponse.body ?? apiResponse
+      setNutrients(getTopFoodNutrients(responseBody.nutritionInfo))
       setUploadStatus('Image sent to Lambda')
     } catch (error) {
       console.error('Image processing request failed', error)
@@ -60,6 +67,19 @@ function App() {
         {file && <p className="file-name" role="status">Selected: <strong>{file.name}</strong></p>}
         {uploadStatus && <p className="upload-status" role="status">{uploadStatus}</p>}
         {previewUrl && <img className="image-preview" src={previewUrl} alt={`Preview of ${file.name}`} />}
+        {nutrients.length > 0 && (
+          <div className="nutrition-results" aria-live="polite">
+            <h2>Nutrition information</h2>
+            <div className="nutrient-list">
+              {nutrients.map((nutrient) => (
+                <div className="nutrient-row" key={`${nutrient.nutrientId}-${nutrient.nutrientName}`}>
+                  <span>{nutrient.nutrientName}</span>
+                  <strong>{nutrient.value} {nutrient.unitName}</strong>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
     </main>
   )
@@ -74,4 +94,9 @@ function fileToBase64(imageFile) {
   })
 }
 
+function getTopFoodNutrients(nutritionInfo) {
+  if (Array.isArray(nutritionInfo)) return nutritionInfo
+  if (Array.isArray(nutritionInfo?.foodNutrients)) return nutritionInfo.foodNutrients
+  return nutritionInfo?.foods?.[0]?.foodNutrients ?? []
+}
 export default App

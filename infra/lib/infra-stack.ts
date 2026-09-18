@@ -28,7 +28,7 @@ export class InfraStack extends cdk.Stack {
     // ============================================
     const nutritionHandler = new lambda.Function(this, 'NutritionHandler', {
       runtime: lambda.Runtime.PYTHON_3_12,
-      handler: 'index.lambda_handler',
+      handler: 'food_classifier.lambda_handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '../../backend/lambda'), {
         bundling: {
           image: lambda.Runtime.PYTHON_3_12.bundlingImage,
@@ -52,8 +52,7 @@ export class InfraStack extends cdk.Stack {
     nutritionHandler.addToRolePolicy(new iam.PolicyStatement({
       actions: ['bedrock:InvokeModel', 'bedrock:InvokeModelWithResponseStream'],
       resources: [
-        'arn:aws:bedrock:*::foundation-model/*anthropic.claude-sonnet-4-5-20250929-v1:0',
-        'arn:aws:bedrock:*:*:inference-profile/*anthropic.claude-sonnet-4-5-20250929-v1:0',
+        '*'
       ],
     }));
 
@@ -71,7 +70,7 @@ export class InfraStack extends cdk.Stack {
     });
 
     const nut = api.root.addResource('nut');
-    nut.addMethod('GET', new apigateway.LambdaIntegration(nutritionHandler));
+    nut.addMethod('POST', new apigateway.LambdaIntegration(nutritionHandler));
 
     // example resource
     // const queue = new sqs.Queue(this, 'InfraQueue', {
