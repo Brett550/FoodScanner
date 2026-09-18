@@ -3,15 +3,16 @@ import os
 import asyncio
 from dataclasses import dataclass
 from httpx import AsyncClient
-import boto3
+# import boto3
 import base64
-import urllib
-from dotenv import load_dotenv
+# import urllib
+# from dotenv import load_dotenv
 
 import logfire
 from pydantic_ai import Agent, BinaryContent
 from pydantic_ai.models.bedrock import BedrockConverseModel
 from pydantic_ai.providers.bedrock import BedrockProvider
+from pydantic import BaseModel
 
 logfire.configure()
 logfire.instrument_pydantic_ai()
@@ -20,14 +21,17 @@ logfire.instrument_pydantic_ai()
 class Deps:
     client: AsyncClient
 
+class Food(BaseModel):
+    foundationName: str
+    fullFoodName: str
+
 provider = BedrockProvider(region_name="us-east-1")
 model = BedrockConverseModel("us.anthropic.claude-haiku-4-5-20251001-v1:0", provider=provider)
 
-food_agent = Agent(model, instructions ="""Classify the image input as a Foundation food item 
-                                        according to USDA naming. No brand. 
-                                        Just the general food it is. Answer only with food name, nothing else.""")
+food_agent = Agent(model, output_type=[Food, str], instructions ="""Classify the image input as both a Foundation food item 
+                                        according to USDA naming with no brand, just the general food it is. Additionally classify as full branded food item, the entire name of the food. Answer only with food name, nothing else.""")
 
-s3 = boto3.client('s3')
+# s3 = boto3.client('s3')
 
 def lambda_handler(event, context):
     data = json.loads(event.body)
@@ -75,7 +79,8 @@ async def classify_and_lookup(decodedImage, contentType) -> dict:
     # image_bytes = response['Body'].read()
     result = await food_agent.run(['Classify the food',
                                     BinaryContent(data=decodedImage, media_type=contentType)])
-    classification = result.output.strip()
+    # classification = result.output.strip()
+    classification = result.output.foundationName.strip()
 
     # USDA FDC search
     api_key = os.environ["FOOD_API"]
@@ -132,12 +137,12 @@ async def classify_and_lookup(decodedImage, contentType) -> dict:
 
 #         result = await food_agent.run(['Classify the food',
 #                                       BinaryContent(data=image_bytes, media_type='image/jpeg')])
-#         print('Claude Response:', result.output)
+#         print('Claude Response:', result.output.foundationName)
 
 #         fdc_response = await client.get(
 #             "https://api.nal.usda.gov/fdc/v1/foods/search",
 #             params={
-#                 "query": result.output.strip(),
+#                 "query": result.output.foundationName.strip(),
 #                 "dataType": "Foundation",
 #                 "api_key": api_key,
 #             },

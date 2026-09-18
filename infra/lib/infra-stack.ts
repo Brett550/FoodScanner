@@ -29,9 +29,17 @@ export class InfraStack extends cdk.Stack {
     const nutritionHandler = new lambda.Function(this, 'NutritionHandler', {
       runtime: lambda.Runtime.PYTHON_3_12,
       handler: 'index.lambda_handler',
-      code: lambda.Code.fromAsset(path.resolve('../backend/food_classifier.py')),
+      code: lambda.Code.fromAsset(path.join(__dirname, '../../backend/lambda'), {
+        bundling: {
+          image: lambda.Runtime.PYTHON_3_12.bundlingImage,
+          command: ['bash', '-c', 'pip install -r requirements.txt -t /asset-output && cp -ru . /asset-output'] //changed from cp -au to cp -ru
+        }
+      }),
       timeout: cdk.Duration.seconds(30),
       memorySize: 256,
+      environment: {
+        FOOD_API: this.node.tryGetContext('apiKey') //when run cdk deploy include -c apiKey=keyValue
+      }
       // environment: {
       //   BUCKET_NAME: foodBucket.bucketName,
       // },

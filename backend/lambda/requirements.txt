@@ -1,0 +1,5 @@
+# boto3==1.43.93
+httpx==0.28.1
+logfire==5.1.0
+pydantic_ai_slim==2.44.0
+python-dotenv==1.2.3
